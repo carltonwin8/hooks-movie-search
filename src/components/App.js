@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useReducer } from "react";
 
 import "./App.css";
 import Header from "./Header";
@@ -8,14 +8,34 @@ import Movie from "./Movie";
 const getUrlFor = search =>
   `https://www.omdbapi.com/?s=${search}&apikey=75a38601`;
 
+const INITIAL_STATE = {
+  loading: true,
+  movies: [],
+  errMsg: null
+};
+const SEARCH_MOVIES_REQUEST = "SEARCH_MOVIES_REQUEST";
+const SEARCH_MOVIES_SUCCESS = "SEARCH_MOVIES_SUCCESS";
+const SEARCH_MOVIES_FAILURE = "SEARCH_MOVIES_FAILURE";
+
+const reducer = (state, action) => {
+  switch (action.type) {
+    case SEARCH_MOVIES_REQUEST:
+      return { ...state, loading: true, errMsg: null };
+    case SEARCH_MOVIES_SUCCESS:
+      return { ...state, loading: false, movies: action.movies };
+    case SEARCH_MOVIES_FAILURE:
+      return { ...state, loading: false, errMsg: action.errMsg };
+    default:
+      return state;
+  }
+};
+
 function App() {
-  const [loading, loadingSet] = useState(true);
-  const [movies, moviesSet] = useState([]);
-  const [errMsg, errMsgSet] = useState(null);
+  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const { loading, movies, errMsg } = state;
 
   const fetchData = async url => {
-    errMsgSet(null);
-    loadingSet(true);
+    dispatch({ type: SEARCH_MOVIES_REQUEST, payload: url });
     let resp, json;
     try {
       resp = await fetch(url);
@@ -23,12 +43,11 @@ function App() {
     } catch (e) {
       const msg = `Error, fetching movies: ${e.message}`;
       console.log(msg);
-      errMsgSet(msg);
-      json.Search = [];
+      dispatch({ type: SEARCH_MOVIES_FAILURE, errMsg: msg });
     }
-    if (json.Response === "True") moviesSet(json.Search);
-    else errMsgSet(json.Error);
-    loadingSet(false);
+    if (json.Response === "True")
+      dispatch({ type: SEARCH_MOVIES_SUCCESS, movies: json.Search });
+    else dispatch({ type: SEARCH_MOVIES_FAILURE, errMsg: json.Error });
   };
 
   useEffect(() => fetchData(getUrlFor("man")) && undefined, []);
